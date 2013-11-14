@@ -54,6 +54,7 @@ namespace BjutNetworkMoniter
                 }
                 else
                 {
+                    this.setInterface(true);
                     this.showNotifyTip();
                 }
                 //登陆成功后自动隐藏界面
@@ -174,12 +175,11 @@ namespace BjutNetworkMoniter
                 labelFee.Text = string.Format("{0} 元", fee1);
                 labelFlowPerDay.Text = string.Format("{0} MB", flowPerDay);
                 toolTip1.SetToolTip(labelFlowPerDay, string.Format("本月已过去了{0}天，\n平均每天您使用了{1}MB流量。", daysFlowed, flowPerDay));
-
-                
+                this.isNicLoged = true;
             }
             else
             {
-                
+                this.isNicLoged = false;
             }
         }
 
