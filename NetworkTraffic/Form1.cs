@@ -57,7 +57,8 @@ namespace BjutNetworkMoniter
                     this.showNotifyTip();
                 }
                 //登陆成功后自动隐藏界面
-                if (this.isNicLoged) {
+                if (this.isNicLoged)
+                {
                     this.WindowState = FormWindowState.Minimized;
                     this.Hide();
                     this.ShowInTaskbar = false;
@@ -174,41 +175,34 @@ namespace BjutNetworkMoniter
                 labelFlowPerDay.Text = string.Format("{0} MB", flowPerDay);
                 toolTip1.SetToolTip(labelFlowPerDay, string.Format("本月已过去了{0}天，\n平均每天您使用了{1}MB流量。", daysFlowed, flowPerDay));
 
-                textBoxUsername.Enabled = false;
-                textBoxPassword.Enabled = false;
-                labelTip1.Text = "本月已使用流量";
-                labelTip2.Text = "账号余额";
-                this.isNicLoged = true;
-                buttonLogin.Text = "注销";
+                
             }
             else
             {
-                buttonLogin.Text = "登录";
-                textBoxUsername.Enabled = true;
-                textBoxPassword.Enabled = true;
-                labelTip1.Text = "用户名";
-                labelTip2.Text = "密码";
-                this.isNicLoged = false;
+                
             }
         }
 
         //点击登陆按钮的代码
         private void buttonLogin_Click(object sender, EventArgs e)
         {
+            //已经登陆，则注销
             if (this.isNicLoged)
             {
                 WebRequest request = WebRequest.Create("http://nic.bjut.edu.cn/F.htm");
                 WebResponse response = request.GetResponse();
                 response.Close();
+                this.isNicLoged = false;
+                this.setInterface(false);
+                this.showNotifyTip();
             }
+            //没登陆就登陆
             else
             {
                 string username = textBoxUsername.Text;
                 string password = textBoxPassword.Text;
                 this.LogIn(username, password);
             }
-            UpdateBjutStatus();
-            showNotifyTip();
         }
 
         //登陆主函数
@@ -231,17 +225,17 @@ namespace BjutNetworkMoniter
                     Properties.Settings.Default.Password = password;
                     Properties.Settings.Default.Save();
                 }
-                this.isNicLoged = true;
-                contextMenuStrip1.Items[0].Text = "注销";
+                this.setInterface(true);
+                this.showNotifyTip();
             }
             //失败情况下解析出错误代码
             else
             {
                 Regex r = new Regex(@"Msg=(.*);t");
+                string msg = "登录失败";
                 if (r.IsMatch(srcString))
                 {
                     int msgCode = Convert.ToInt32(r.Match(srcString).Groups[1].Value);
-                    string msg = "登录失败";
                     switch (msgCode)
                     {
                         case 0:
@@ -258,24 +252,46 @@ namespace BjutNetworkMoniter
                             msg = "本账号余额为零";
                             break;
                     }
-                    notifyIcon1.BalloonTipText = msg;
                 }
-                this.isNicLoged = false;
-                contextMenuStrip1.Items[0].Text = "登录";
+                this.setInterface(false);
+                this.showNotifyTip(msg);
             }
-            this.showNotifyTip();
         }
 
-        //显示通知区域消息
-        private void showNotifyTip()
-        {
-            if (this.isNicLoged)
+        //根据登陆成功与否更改界面控件状态
+        private void setInterface(bool logged) {
+            if (logged)
             {
-                notifyIcon1.BalloonTipText = "校园网已登录";
+                textBoxUsername.Enabled = false;
+                textBoxPassword.Enabled = false;
+                buttonLogin.Text = "注销";
+                contextMenuStrip1.Items[0].Text = "注销";
             }
-            else
+            else {
+                textBoxUsername.Enabled = true;
+                textBoxPassword.Enabled = true;
+                buttonLogin.Text = "登录";
+                contextMenuStrip1.Items[0].Text = "登录";
+            }
+            this.isNicLoged = logged;
+        }
+
+        //显示通知区域消息，根据登陆状态决定显示登陆或断开，如果参数有附加信息则显示附加信息（失败的消息）
+        private void showNotifyTip(string msg = "")
+        {
+            if (msg != "")
             {
-                notifyIcon1.BalloonTipText = "校园网已断开";
+                notifyIcon1.BalloonTipText = msg;
+            }
+            else {
+                if (this.isNicLoged)
+                {
+                    notifyIcon1.BalloonTipText = "校园网已登录";
+                }
+                else
+                {
+                    notifyIcon1.BalloonTipText = "校园网已断开";
+                }
             }
             notifyIcon1.ShowBalloonTip(1000);
         }

@@ -20,5 +20,10 @@ namespace BjutNetworkMoniter
         {
             labelVersion.Text = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString();
         }
+
+        private void linkLabel1_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            System.Diagnostics.Process.Start("https://github.com/beside4ever/BjutNetworkMoniter");
+        }
     }
 }
