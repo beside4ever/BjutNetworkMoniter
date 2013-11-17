@@ -34,26 +34,26 @@ namespace BjutNetworkMoniter
                 //调取程序设置，更改控件状态或内容
                 checkBoxSavePw.Checked = Properties.Settings.Default.SavePw;
                 checkBoxAutorun.Checked = Properties.Settings.Default.Autorun;
-                if (checkBoxSavePw.Checked)
-                {
-                    textBoxUsername.Text = Properties.Settings.Default.Username;
-                    textBoxPassword.Text = Properties.Settings.Default.Password;
-                }
+                int lastAccIndex = Properties.Settings.Default.lastAccIndex;
                 //初始化网卡列表、更新网卡状态、启动计时器、刷新校园网状态
                 InitComboBoxNic();
                 UpdateNicStats();
                 StartNicStatusTmr();
                 UpdateBjutStatus();
-                //如果当前未登陆，则尝试一次自动登陆
-                if (!this.isNicLoged)
+                //如果当前未登陆且有保存过密码，则尝试一次自动登陆
+                if (!this.isNicLoged && checkBoxSavePw.Checked)
                 {
-                    string savedUsername = BjutNetworkMoniter.Properties.Settings.Default.Username;
-                    string savedPassword = BjutNetworkMoniter.Properties.Settings.Default.Password;
-                    this.LogIn(savedUsername, savedPassword);
+                    if (Properties.Settings.Default.Username.Count > 0)
+                    {
+                        textBoxUsername.Text = Properties.Settings.Default.Username[lastAccIndex];
+                        textBoxPassword.Text = Properties.Settings.Default.Password[lastAccIndex];
+                    }
+                    this.LogIn(textBoxUsername.Text, textBoxPassword.Text);
                     UpdateBjutStatus();
                 }
                 else
                 {
+                    this.autoCompletefromSetting();
                     this.setInterface(true);
                     this.showNotifyTip();
                 }
@@ -155,31 +155,43 @@ namespace BjutNetworkMoniter
         //根据当前校园网登录情况更改界面显示状态
         private void UpdateBjutStatus()
         {
-            WebRequest request = WebRequest.Create("http://nic.bjut.edu.cn/");
-            WebResponse response = request.GetResponse();
-            StreamReader reader = new StreamReader(response.GetResponseStream(), Encoding.GetEncoding("gb2312"));
-            string stream = @reader.ReadToEnd();
-            Regex r = new Regex(@"flow='(.*)';fsele=1;fee='(.*)';x");
-            reader.Close();
-            response.Close();
-            if (r.IsMatch(stream))
-            {
-                int flow = Convert.ToInt32(r.Match(stream).Groups[1].Value);
-                int fee = Convert.ToInt32(r.Match(stream).Groups[2].Value);
-                double flow1 = Math.Round(flow / 1024.0, 2);
-                double fee1 = Math.Round(fee / 10000.0, 2);
-                int daysFlowed = DateTime.Now.Day;
-                double flowPerDay = Math.Round(flow / daysFlowed / 1024.0, 2);
-
-                labelFlow.Text = string.Format("{0} MB", flow1);
-                labelFee.Text = string.Format("{0} 元", fee1);
-                labelFlowPerDay.Text = string.Format("{0} MB", flowPerDay);
-                toolTip1.SetToolTip(labelFlowPerDay, string.Format("本月已过去了{0}天，\n平均每天您使用了{1}MB流量。", daysFlowed, flowPerDay));
-                this.isNicLoged = true;
+            //如果界面是隐藏的，则不更新（降低消耗）
+            if (this.WindowState == FormWindowState.Minimized) {
+                return;
             }
-            else
+            try
             {
-                this.isNicLoged = false;
+                WebRequest request = WebRequest.Create("http://nic.bjut.edu.cn/");
+                WebResponse response = request.GetResponse();
+                StreamReader reader = new StreamReader(response.GetResponseStream(), Encoding.GetEncoding("gb2312"));
+                string stream = @reader.ReadToEnd();
+                Regex r = new Regex(@"flow='(.*)';fsele=1;fee='(.*)';x");
+                reader.Close();
+                response.Close();
+                if (r.IsMatch(stream))
+                {
+                    int flow = Convert.ToInt32(r.Match(stream).Groups[1].Value);
+                    int fee = Convert.ToInt32(r.Match(stream).Groups[2].Value);
+                    double flow1 = Math.Round(flow / 1024.0, 2);
+                    double fee1 = Math.Round(fee / 10000.0, 2);
+                    int daysFlowed = DateTime.Now.Day;
+                    double flowPerDay = Math.Round(flow / daysFlowed / 1024.0, 2);
+
+                    labelFlow.Text = string.Format("{0} MB", flow1);
+                    labelFee.Text = string.Format("{0} 元", fee1);
+                    labelFlowPerDay.Text = string.Format("{0} MB", flowPerDay);
+                    toolTip1.SetToolTip(labelFlowPerDay, string.Format("本月已过去了{0}天，\n平均每天您使用了{1}MB流量。", daysFlowed, flowPerDay));
+                    this.isNicLoged = true;
+                }
+                else
+                {
+                    this.isNicLoged = false;
+                }
+            }
+            catch (WebException e)
+            {
+                notifyIcon1.BalloonTipText = e.Message;
+                notifyIcon1.ShowBalloonTip(1000);
             }
         }
 
@@ -205,6 +217,17 @@ namespace BjutNetworkMoniter
             }
         }
 
+        //从设置项中把已保存的账号密码填入textbox的自动完成序列里
+        private void autoCompletefromSetting()
+        {
+            System.Collections.Specialized.StringCollection users = Properties.Settings.Default.Username;
+            textBoxUsername.AutoCompleteCustomSource.Clear();
+            for (int n = 0; n < users.Count; n++)
+            {
+                textBoxUsername.AutoCompleteCustomSource.Add(users[n]);
+            }
+        }
+
         //登陆主函数
         private void LogIn(string username, string password)
         {
@@ -213,7 +236,14 @@ namespace BjutNetworkMoniter
             string url = "http://nic.bjut.edu.cn/";//地址  
             WebClient webClient = new WebClient();
             webClient.Headers.Add("Content-Type", "application/x-www-form-urlencoded");//采取POST方式必须加的header，如果改为GET方式的话就去掉这句话即可  
-            byte[] responseData = webClient.UploadData(url, "POST", postData);//得到返回字符流  
+            byte[] responseData = null;
+            try
+            {
+                responseData = webClient.UploadData(url, "POST", postData);//得到返回字符流 
+            }
+            catch {
+                return;
+            }
             string srcString = Encoding.GetEncoding("GB2312").GetString(responseData);//解码  
 
             //登录成功
@@ -221,9 +251,20 @@ namespace BjutNetworkMoniter
             {
                 if (checkBoxSavePw.Checked)
                 {
-                    Properties.Settings.Default.Username = username;
-                    Properties.Settings.Default.Password = password;
+                    //如果选中保存密码，则保存字符串
+                    int existId = Properties.Settings.Default.Username.IndexOf(username);
+                    //如果已存在此账号则删除之前的内容
+                    if (existId > 0)
+                    {
+                        Properties.Settings.Default.Username.RemoveAt(existId);
+                        Properties.Settings.Default.Password.RemoveAt(existId);
+                    }
+                    Properties.Settings.Default.Username.Add(username);
+                    Properties.Settings.Default.Password.Add(password);
+                    Properties.Settings.Default.lastAccIndex = Properties.Settings.Default.Username.IndexOf(username);
                     Properties.Settings.Default.Save();
+                    //根据设置保存的用户名集合填充到文本框的自动完成序列
+                    this.autoCompletefromSetting();
                 }
                 this.setInterface(true);
                 this.showNotifyTip();
@@ -259,7 +300,8 @@ namespace BjutNetworkMoniter
         }
 
         //根据登陆成功与否更改界面控件状态
-        private void setInterface(bool logged) {
+        private void setInterface(bool logged)
+        {
             if (logged)
             {
                 textBoxUsername.Enabled = false;
@@ -267,11 +309,15 @@ namespace BjutNetworkMoniter
                 buttonLogin.Text = "注销";
                 contextMenuStrip1.Items[0].Text = "注销";
             }
-            else {
+            else
+            {
                 textBoxUsername.Enabled = true;
                 textBoxPassword.Enabled = true;
                 buttonLogin.Text = "登录";
                 contextMenuStrip1.Items[0].Text = "登录";
+                labelFlow.Text = "请先登录";
+                labelFee.Text = "请先登录";
+                labelFlowPerDay.Text = "请先登录"; 
             }
             this.isNicLoged = logged;
         }
@@ -283,10 +329,12 @@ namespace BjutNetworkMoniter
             {
                 notifyIcon1.BalloonTipText = msg;
             }
-            else {
+            else
+            {
                 if (this.isNicLoged)
                 {
-                    notifyIcon1.BalloonTipText = "校园网已登录";
+                    string curUser = textBoxUsername.Text == "" ? "" : string.Format("\n当前账号：{0}", textBoxUsername.Text);
+                    notifyIcon1.BalloonTipText = "校园网已登录" + curUser;
                 }
                 else
                 {
@@ -296,12 +344,14 @@ namespace BjutNetworkMoniter
             notifyIcon1.ShowBalloonTip(1000);
         }
 
+        //保存密码选项变动时，更改设置内容
         private void checkBoxSavePw_CheckedChanged(object sender, EventArgs e)
         {
             Properties.Settings.Default.SavePw = checkBoxSavePw.Checked;
             Properties.Settings.Default.Save();
         }
 
+        //更改开机启动选项，设置注册表
         private void checkBoxAutorun_CheckedChanged(object sender, EventArgs e)
         {
             string R_startPath = Application.ExecutablePath;
@@ -330,11 +380,13 @@ namespace BjutNetworkMoniter
             Properties.Settings.Default.Save();
         }
 
+        //密码输入框按下回车直接尝试登陆
         private void textBoxPw_KeyPress(object sender, KeyPressEventArgs e)
         {
             if ((Keys)e.KeyChar == Keys.Enter) buttonLogin_Click(sender, e);
         }
 
+        //打开关于窗口
         private void button1_Click(object sender, EventArgs e)
         {
             FormAbout formAbout = new FormAbout(new Point(this.Location.X + this.Size.Width, this.Location.Y));
@@ -344,11 +396,13 @@ namespace BjutNetworkMoniter
             }
         }
 
+        //右键菜单程序退出
         private void ExitToolStripMenuItem_Click(object sender, EventArgs e)
         {
             Application.Exit();
         }
 
+        //右键菜单弹出主界面
         private void MainToolStripMenuItem_Click(object sender, EventArgs e)
         {
             this.Visible = true;
@@ -356,23 +410,41 @@ namespace BjutNetworkMoniter
             this.ShowInTaskbar = true;
         }
 
+        //右键菜单进行登陆
         private void LogToolStripMenuItem_Click(object sender, EventArgs e)
         {
             MainToolStripMenuItem_Click(sender, e);
             buttonLogin_Click(sender, e);
         }
 
+        //双击通知区域小图标
         private void notifyIcon1_MDC(object sender, MouseEventArgs e)
         {
             MainToolStripMenuItem_Click(sender, e);
         }
 
+        //窗口最小化时隐藏界面
         private void Form1_SizeChanged(object sender, EventArgs e)
         {
             if (this.WindowState == FormWindowState.Minimized)
             {
                 this.Hide();
                 this.ShowInTaskbar = false;
+            }
+        }
+
+        //根据账号框的内容变化确定是否自动填充密码
+        private void textBoxUsername_TextChanged(object sender, EventArgs e)
+        {
+            //如果设置里保存的用户名集合中包含了当前输入框的用户名的话
+            if (Properties.Settings.Default.Username.Count > 0)
+            {
+                int index = Properties.Settings.Default.Username.IndexOf(textBoxUsername.Text);
+                if (index >= 0)
+                {
+                    //则自动填充对应的密码
+                    textBoxPassword.Text = Properties.Settings.Default.Password[index];
+                }
             }
         }
     }

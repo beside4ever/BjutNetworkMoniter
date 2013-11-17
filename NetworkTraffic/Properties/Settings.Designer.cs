@@ -25,10 +25,11 @@ namespace BjutNetworkMoniter.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("")]
-        public string Username {
+        [global::System.Configuration.DefaultSettingValueAttribute("<?xml version=\"1.0\" encoding=\"utf-16\"?>\r\n<ArrayOfString xmlns:xsi=\"http://www.w3." +
+            "org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" />")]
+        public global::System.Collections.Specialized.StringCollection Username {
             get {
-                return ((string)(this["Username"]));
+                return ((global::System.Collections.Specialized.StringCollection)(this["Username"]));
             }
             set {
                 this["Username"] = value;
@@ -37,10 +38,11 @@ namespace BjutNetworkMoniter.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("")]
-        public string Password {
+        [global::System.Configuration.DefaultSettingValueAttribute("<?xml version=\"1.0\" encoding=\"utf-16\"?>\r\n<ArrayOfString xmlns:xsi=\"http://www.w3." +
+            "org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" />")]
+        public global::System.Collections.Specialized.StringCollection Password {
             get {
-                return ((string)(this["Password"]));
+                return ((global::System.Collections.Specialized.StringCollection)(this["Password"]));
             }
             set {
                 this["Password"] = value;
@@ -68,6 +70,18 @@ namespace BjutNetworkMoniter.Properties {
             }
             set {
                 this["Autorun"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("0")]
+        public int lastAccIndex {
+            get {
+                return ((int)(this["lastAccIndex"]));
+            }
+            set {
+                this["lastAccIndex"] = value;
             }
         }
     }
