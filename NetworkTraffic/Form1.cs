@@ -40,14 +40,15 @@ namespace BjutNetworkMoniter
                 UpdateNicStats();
                 StartNicStatusTmr();
                 UpdateBjutStatus();
-                //如果当前未登陆且有保存过密码，则尝试一次自动登陆
-                if (!this.isNicLoged && checkBoxSavePw.Checked)
+                //如果保存过密码则填充文本框内容
+                if (checkBoxSavePw.Checked && Properties.Settings.Default.Username.Count > 0)
                 {
-                    if (Properties.Settings.Default.Username.Count > 0)
-                    {
-                        textBoxUsername.Text = Properties.Settings.Default.Username[lastAccIndex];
-                        textBoxPassword.Text = Properties.Settings.Default.Password[lastAccIndex];
-                    }
+                    textBoxUsername.Text = Properties.Settings.Default.Username[lastAccIndex];
+                    textBoxPassword.Text = Properties.Settings.Default.Password[lastAccIndex];
+                }
+                //如果当前未登陆，尝试自动登录
+                if (!this.isNicLoged)
+                {
                     this.LogIn(textBoxUsername.Text, textBoxPassword.Text);
                     UpdateBjutStatus();
                 }
@@ -152,7 +153,7 @@ namespace BjutNetworkMoniter
             lastBytesReceived = 0;
         }
 
-        //根据当前校园网登录情况更改界面显示状态
+        //抓取校园网登录后的状态页面更改界面显示状态
         private void UpdateBjutStatus()
         {
             //如果界面是隐藏的，则不更新（降低消耗）
@@ -338,7 +339,7 @@ namespace BjutNetworkMoniter
                 }
                 else
                 {
-                    notifyIcon1.BalloonTipText = "校园网已断开";
+                    notifyIcon1.BalloonTipText = "校园网未登录";
                 }
             }
             notifyIcon1.ShowBalloonTip(1000);
