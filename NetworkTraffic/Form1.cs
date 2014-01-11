@@ -37,6 +37,9 @@ namespace BjutNetworkMoniter
                 int lastAccIndex = Properties.Settings.Default.lastAccIndex;
                 //初始化网卡列表、更新网卡状态、启动计时器、刷新校园网状态
                 InitComboBoxNic();
+                if (this.currentInterface == null) {
+                    this.showNotifyTip("无可用网络连接。");
+                }
                 UpdateNicStats();
                 StartNicStatusTmr();
                 UpdateBjutStatus();
@@ -110,11 +113,14 @@ namespace BjutNetworkMoniter
                 {
                     comboBoxNetworkInterfaces.Items.Add(networkInterface.Name);
                     this.Nics.Add(networkInterface);
+                    //第一个找到的可用网卡作为当前网卡
+                    if (comboBoxNetworkInterfaces.Items.Count == 0) currentInterface = networkInterface;
                 }
             }
-            currentInterface = networkInterfaces[0];
+
             //将下拉列表设定为第一个
-            comboBoxNetworkInterfaces.SelectedIndex = 0;
+            //若有任何一个联网的网络连接，则将下拉框定为第一个索引
+            if (comboBoxNetworkInterfaces.Items.Count > 0) comboBoxNetworkInterfaces.SelectedIndex = 0;
         }
 
         //计时器委托
@@ -127,22 +133,30 @@ namespace BjutNetworkMoniter
         //更新网络状态
         private void UpdateNicStats()
         {
-            if (currentInterface == null) InitComboBoxNic();
-            // Get the IPv4	statistics for the currently selected interface.
-            IPv4InterfaceStatistics ipv4Stats = currentInterface.GetIPv4Statistics();
+            //无网络时尝试获取可用的网络
+            if (currentInterface == null)
+            {
+                InitComboBoxNic();
+            }
+            //否则获取网络流量状态
+            else
+            {
+                // Get the IPv4	statistics for the currently selected interface.
+                IPv4InterfaceStatistics ipv4Stats = currentInterface.GetIPv4Statistics();
 
-            double bytesReceivedInMB = Math.Round(ipv4Stats.BytesReceived / (1024 * 1024.0), 2);
-            double bytesSentInMB = Math.Round(ipv4Stats.BytesSent / (1024 * 1024.0), 2);
-            double kbytesReceivedSpeed = Math.Round((ipv4Stats.BytesReceived - lastBytesReceived) / 1024.0, 2);
-            double kbytesSentSpeed = Math.Round((ipv4Stats.BytesSent - lastBytesSent) / 1024.0, 2);
+                double bytesReceivedInMB = Math.Round(ipv4Stats.BytesReceived / (1024 * 1024.0), 2);
+                double bytesSentInMB = Math.Round(ipv4Stats.BytesSent / (1024 * 1024.0), 2);
+                double kbytesReceivedSpeed = Math.Round((ipv4Stats.BytesReceived - lastBytesReceived) / 1024.0, 2);
+                double kbytesSentSpeed = Math.Round((ipv4Stats.BytesSent - lastBytesSent) / 1024.0, 2);
 
-            this.labelBytesReceived.Text = bytesReceivedInMB.ToString() + " MB";
-            this.labelBytesSent.Text = bytesSentInMB.ToString() + " MB";
-            this.labelBytesReceivedSpeed.Text = lastBytesReceived == 0 ? "0KB/s" : kbytesReceivedSpeed.ToString() + "KB/s";
-            this.labelBytesSentSpeed.Text = lastBytesSent == 0 ? "0KB/s" : kbytesSentSpeed.ToString() + "KB/s";
+                this.labelBytesReceived.Text = bytesReceivedInMB.ToString() + " MB";
+                this.labelBytesSent.Text = bytesSentInMB.ToString() + " MB";
+                this.labelBytesReceivedSpeed.Text = lastBytesReceived == 0 ? "0KB/s" : kbytesReceivedSpeed.ToString() + "KB/s";
+                this.labelBytesSentSpeed.Text = lastBytesSent == 0 ? "0KB/s" : kbytesSentSpeed.ToString() + "KB/s";
 
-            lastBytesReceived = ipv4Stats.BytesReceived;
-            lastBytesSent = ipv4Stats.BytesSent;
+                lastBytesReceived = ipv4Stats.BytesReceived;
+                lastBytesSent = ipv4Stats.BytesSent;
+            }
         }
 
         //网卡变化
@@ -157,7 +171,9 @@ namespace BjutNetworkMoniter
         private void UpdateBjutStatus()
         {
             //如果界面是隐藏的，则不更新（降低消耗）
-            if (this.WindowState == FormWindowState.Minimized) {
+            //如果没有可用网络也不更新
+            if (this.WindowState == FormWindowState.Minimized || this.currentInterface == null)
+            {
                 return;
             }
             try
@@ -242,7 +258,8 @@ namespace BjutNetworkMoniter
             {
                 responseData = webClient.UploadData(url, "POST", postData);//得到返回字符流 
             }
-            catch {
+            catch
+            {
                 return;
             }
             string srcString = Encoding.GetEncoding("GB2312").GetString(responseData);//解码  
@@ -318,7 +335,7 @@ namespace BjutNetworkMoniter
                 contextMenuStrip1.Items[0].Text = "登录";
                 labelFlow.Text = "请先登录";
                 labelFee.Text = "请先登录";
-                labelFlowPerDay.Text = "请先登录"; 
+                labelFlowPerDay.Text = "请先登录";
             }
             this.isNicLoged = logged;
         }
